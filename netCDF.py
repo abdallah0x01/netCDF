@@ -6,22 +6,7 @@ import time
 import csv
 
 class ConvertCoordinates:
-    def __init__(self,file_name) -> None:
-        self.data = Dataset(file_name)  # reading netCDF file
-        self.pin_width = 10
-        self.coor_list = []
-        self.coor = ''
-        self.file = None
-        self.radial_azims_degs = []
-        self.radial_elev_degs = []
-        self.site_alt = self.data.variables['siteAlt'][:]  # Altitude of site above mean sea level
-        self.site_lon = self.data.variables['siteLon'][:]  # Longitude of site
-        self.site_lat = self.data.variables['siteLat'][:]  # Latitude of site
-        self.radial_azims = self.data.variables['radialAzim']  # Radial azimuth angle
-        self.radial_elev = self.data.variables['radialElev']  # Radial elevation angle
-        self.radial_time = self.data.variables['radialTime']  # Time of radial
-        self.velocity = self.data.variables['V'] 
-        self.pins_list = list(range(0,750))
+    
     
     def initiatFile(self,firstpart:str):
         '''This function just create empty CSV file format'''
@@ -62,14 +47,37 @@ class ConvertCoordinates:
                 y = round((pin * self.pin_width * sin(radial_elev_deg)
                                     * sin(radial_azims_deg)+ self.site_lat).real, 3)  
                 
-                # I think I need to add site_alt on the z value
                 z = round((pin * self.pin_width * cos(radial_elev_deg) + self.site_alt).real, 3) 
                 
                 v = round(self.velocity[radians(radial_azims_deg)][pin],3)
-                coor = f'x: {x}, y: {y}, z: {z}, t: {t}, v: {v})'
+                coor = f'p: {pin}, x: {x}, y: {y}, z: {z}, t: {t}, v: {v})'
                 self.coor_list.append(coor)
-            file.addRecords(self.coor_list)
+            self.addRecords(self.coor_list)
             self.coor_list.clear()
+            
+    def __init__(self,file_name:str):
+        
+        self.data = Dataset(file_name)  # reading netCDF file
+        self.pin_width = 10
+        self.coor_list = []
+        self.coor = ''
+        self.file = None
+        self.radial_azims_degs = []
+        self.radial_elev_degs = []
+        self.site_alt = self.data.variables['siteAlt'][:]  # Altitude of site above mean sea level
+        self.site_lon = self.data.variables['siteLon'][:]  # Longitude of site
+        self.site_lat = self.data.variables['siteLat'][:]  # Latitude of site
+        self.radial_azims = self.data.variables['radialAzim']  # Radial azimuth angle
+        self.radial_elev = self.data.variables['radialElev']  # Radial elevation angle
+        self.radial_time = self.data.variables['radialTime']  # Time of radial
+        self.velocity = self.data.variables['V'] 
+        self.pins_list = list(range(0,750))
+        if not os.path.exists(f'{firstpart}.csv'):
+            self.initiatFile(firstpart) # initiating CSV file
+        else:
+            os.remove(f'{firstpart}.csv')
+            self.initiatFile(firstpart) 
+        self.getCartizian(file_name) # calculating cartizian coordiantes
             
 # loop through all nc files in directory where script exist
 for file_name in os.listdir():
@@ -77,8 +85,7 @@ for file_name in os.listdir():
         firstpart, ext = os.path.splitext(file_name)
         ext = ext.strip('.')
         if ext == 'nc':
-            file = ConvertCoordinates(file_name)
-            file.initiatFile(firstpart)
-            file.getCartizian(file_name)
+            ConvertCoordinates(file_name)
+            
 print('Done')
             
