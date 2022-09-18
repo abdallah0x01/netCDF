@@ -4,7 +4,6 @@ from numpy import round,degrees,sin,cos
 import os
 import time
 import csv
-#comment
 class ConvertCoordinates:
     
     
