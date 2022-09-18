@@ -5,8 +5,6 @@ import os
 import time
 import csv
 
-
-
 class ConvertCoordinates:
     def __init__(self,file_name) -> None:
         self.data = Dataset(file_name)  # reading netCDF file
@@ -39,6 +37,7 @@ class ConvertCoordinates:
         
     def getCartizian(self,filename:str):
         """This function takes nc file and then converts polar coordinates to cartizian coordiantes and convert epoch time to local time """
+        
         print(f'Converting {filename} into CSV, please wait a while')
         
         # convert rad to degree
@@ -49,7 +48,8 @@ class ConvertCoordinates:
         for rad_angle in self.radial_elev:
             radial_elev_deg = degrees(rad_angle)
             self.radial_elev_degs.append(radial_elev_deg)
-
+            ###############################################
+            
         for radial_elev_deg, radial_azims_deg, radial_time_epoch\
         in zip(self.radial_elev_degs, self.radial_azims_degs, self.radial_time):
             for pin in self.pins_list:
