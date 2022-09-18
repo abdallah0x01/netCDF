@@ -1,73 +1,84 @@
+from math import radians
 from netCDF4 import Dataset
-import numpy as np
+from numpy import round,degrees,sin,cos
 import os
 import time
 import csv
 
-def getCSV(x, y, z, t):
-    '''this function create csv file with cartizian coorninates'''
-    with open('netCDF.csv','a') as file:
-        field_names = ['x', 'y', 'z', 't']
-        writer = csv.DictWriter(file,fieldnames=field_names)
-        writer.writeheader()
-        writer.writerow({'x':x,'y':y,'z':z,'t':t})
 
 
+class ConvertCoordinates:
+    def __init__(self,file_name) -> None:
+        self.data = Dataset(file_name)  # reading netCDF file
+        self.pin_width = 10
+        self.coor_list = []
+        self.coor = ''
+        self.file = None
+        self.radial_azims_degs = []
+        self.radial_elev_degs = []
+        self.site_alt = self.data.variables['siteAlt'][:]  # Altitude of site above mean sea level
+        self.site_lon = self.data.variables['siteLon'][:]  # Longitude of site
+        self.site_lat = self.data.variables['siteLat'][:]  # Latitude of site
+        self.radial_azims = self.data.variables['radialAzim']  # Radial azimuth angle
+        self.radial_elev = self.data.variables['radialElev']  # Radial elevation angle
+        self.radial_time = self.data.variables['radialTime']  # Time of radial
+        self.velocity = self.data.variables['V'] 
+        self.pins_list = list(range(0,750))
+    
+    def initiatFile(self,firstpart:str):
+        '''This function just create empty CSV file format'''
+        self.file = open(f'{firstpart}.csv','a')
+        writer = csv.writer(self.file)
+        writer.writerow(list(range(0,750)))
 
 
-def getCartizian(filename):
-    """This function takes nc file and then converts polar coordinates to cartizian coordiantes and takes epoch time
-    then convert it to local time """
-    # reading netCDF file
-    data = Dataset(filename)
-
-    # variables
-    radial_azims_degs = []
-    radial_elev_degs = []
-    site_alt: object = data.variables['siteAlt'][:]  # Altitude of site above mean sea level
-    site_lon = data.variables['siteLon'][:]  # Longitude of site
-    site_lat = data.variables['siteLat'][:]  # Latitude of site
-    radial_azims = data.variables['radialAzim']  # Radial azimuth angle
-    radial_elev = data.variables['radialElev']  # Radial elevation angle
-    radial_time = data.variables['radialTime']  # Time of radial
-
-    # convert rad to degree
-    for rad_angle in radial_azims:
-        radial_azims_deg = np.degrees(rad_angle)
-        radial_azims_degs.append(radial_azims_deg)
-
-    for rad_angle in radial_elev:
-        radial_elev_deg = np.degrees(rad_angle)
-        radial_elev_degs.append(radial_elev_deg)
-
-    # calculate r and rho
-
-    # r = np.sqrt(site_lon ** 2 + site_lat ** 2 + site_alt ** 2)
-    # rho = np.sqrt(site_lon ** 2 + site_lat ** 2)
-
-    for radial_elev_deg, radial_azims_deg, radial_time_epoch\
-    in zip(radial_elev_degs, radial_azims_degs, radial_time):
-        # calculate to cartizan coordinates
-        x = np.round(np.real(1 * np.sin(radial_elev_deg)
-                             * np.cos(radial_azims_deg)), 3)
-        y = np.round(np.real(1 * np.sin(radial_elev_deg)
-                             * np.sin(radial_azims_deg)), 3)
-        z = np.round(np.real((1 * np.cos(radial_elev_deg))), 3) # I think I need to add site_alt on the z value
-        # calculate local time
-        t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(radial_time_epoch)))
-        getCSV(x, y, z, t)
-    print('cvs file created')
+    def addRecords(self, lis:list):
+        '''This function add cartizian coordinates to CSV file'''
+        writer = csv.writer(self.file)
+        writer.writerow(lis)
         
-        # print(f'({x}, {y}, {z}, {t})')
+    def getCartizian(self,filename:str):
+        """This function takes nc file and then converts polar coordinates to cartizian coordiantes and convert epoch time to local time """
+        print(f'Converting {filename} into CSV, please wait a while')
+        
+        # convert rad to degree
+        for rad_angle in self.radial_azims:
+            radial_azims_deg = degrees(rad_angle)
+            self.radial_azims_degs.append(radial_azims_deg)
 
+        for rad_angle in self.radial_elev:
+            radial_elev_deg = degrees(rad_angle)
+            self.radial_elev_degs.append(radial_elev_deg)
 
+        for radial_elev_deg, radial_azims_deg, radial_time_epoch\
+        in zip(self.radial_elev_degs, self.radial_azims_degs, self.radial_time):
+            for pin in self.pins_list:
+            # calculate local time
+                t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(radial_time_epoch)))
+                # calculate to cartizan coordinates
+                x = round((pin * self.pin_width * sin(radial_elev_deg)
+                                    * cos(radial_azims_deg) + self.site_lon ).real,3)
+                
+                y = round((pin * self.pin_width * sin(radial_elev_deg)
+                                    * sin(radial_azims_deg)+ self.site_lat).real, 3)  
+                
+                # I think I need to add site_alt on the z value
+                z = round((pin * self.pin_width * cos(radial_elev_deg) + self.site_alt).real, 3) 
+                
+                v = round(self.velocity[radians(radial_azims_deg)][pin],3)
+                coor = f'x: {x}, y: {y}, z: {z}, t: {t}, v: {v})'
+                self.coor_list.append(coor)
+            file.addRecords(self.coor_list)
+            self.coor_list.clear()
+            
 # loop through all nc files in directory where script exist
-for current_dir, dir_names, file_names in os.walk(os.getcwd()):
-    for file_name in file_names:
+for file_name in os.listdir():
+    
         firstpart, ext = os.path.splitext(file_name)
         ext = ext.strip('.')
         if ext == 'nc':
-            getCartizian(file_name)
+            file = ConvertCoordinates(file_name)
+            file.initiatFile(firstpart)
+            file.getCartizian(file_name)
+print('Done')
             
-            
-
