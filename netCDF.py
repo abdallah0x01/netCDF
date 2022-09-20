@@ -102,6 +102,7 @@ if __name__ == '__main__':
             pin_width = int(input(f'Enter pin width of file {file} : '))
 
         for file in nc_files:
+            # mulitprocessing for multiple files in same time
             p = mp.Process(target=ConvertCoordinates,args=(file,pin_width))
             processes.append(p)
             p.start()
