@@ -62,7 +62,7 @@ class ConvertCoordinates:
         for radial_elev, radial_azims, radial_time_epoch\
         in zip(self.radial_elev, self.radial_azims, self.radial_time):
             
-            for pin in range(7,8):
+            for pin in self.pins_list:
             # calculate local time
                 t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(radial_time_epoch)))
                 # calculate to cartizan coordinates
@@ -93,22 +93,32 @@ def get_files():
 
 def main():
         get_files()
+        global mulitiprocess_files
         def mulitiprocess_files(file):
             ConvertCoordinates(file)
         
         for file in nc_files:
-            p = mp.Process(target=mulitiprocess_files(file))
-            p.start()
+            p = mp.Process(target=mulitiprocess_files,args=(file,))
             processes.append(p)
 
-        for p in processes :
-            p.join()
+        if __name__ == '__main__':
+            for p in processes :
+                p.start()
+                
+            for p in processes :
+                    p.join()
 
-        end = time.perf_counter()
-        print(f'Done in {round(end - start,2)}s')
+            end = time.perf_counter()
+            print(f'Done in {round(end - start,2)}s')
 
-if __name__ == "__main__":
-    main()
+
+        
+
+
+main()
+
+
+
 
 
 
