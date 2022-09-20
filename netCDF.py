@@ -1,4 +1,5 @@
 from concurrent.futures import process
+from math import degrees
 import time
 from netCDF4 import Dataset
 import numpy as np
@@ -13,14 +14,13 @@ processes = []
 
 class ConvertCoordinates:
     '''this is the main class'''
-    def __init__(self,file_name:str):
+    def __init__(self,file_name:str,pin_width:int):
         
         self.data = Dataset(file_name)  # reading netCDF file
-        # self.pin_width = None
         self.coor_list = []
         self.coor = ''
         self.file = None
-        self.pin_width = 10
+        self.pin_width = pin_width
         self.radial_azims_degs = []
         self.radial_elev_degs = []
         self.site_alt = self.data.variables['siteAlt'][:]  # Altitude of site above mean sea level
@@ -39,7 +39,6 @@ class ConvertCoordinates:
         elif os.path.exists(f'{self.first_part}.csv'):
             os.remove(f'{self.first_part}.csv')
             self.initiatFile(self.first_part) 
-
         self.getCartizian(file_name) # calculating cartizian coordiantes
     
     def initiatFile(self,firstpart:str):
@@ -55,22 +54,26 @@ class ConvertCoordinates:
         
     def getCartizian(self,filename:str):
         """This function takes nc file and then converts polar coordinates to cartizian coordiantes and convert epoch time to local time """
-        # self.pin_width = 10
         
         print(f'Converting {filename} into CSV, please wait a while')
         
         for radial_elev, radial_azims, radial_time_epoch\
         in zip(self.radial_elev, self.radial_azims, self.radial_time):
             
-            for pin in self.pins_list:
+            for pin in range(7, 8):
             # calculate local time
                 t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(radial_time_epoch)))
                 # calculate to cartizan coordinates
-                x = np.round(((pin * self.pin_width * np.sin(radial_elev)
-                                    * np.cos(radial_azims)) + self.site_lon ).real,3)
-                y = np.round((pin * self.pin_width * np.sin(radial_elev)
-                                    * np.sin(radial_azims) + self.site_lat).real, 3)  
-                z = np.round((pin * self.pin_width * np.cos(radial_elev) + self.site_alt).real, 3) 
+                if  270 >= degrees(radial_azims) >= 90:
+                    self.site_lon *=  -1
+                    self.site_alt *=  -1
+                    
+
+                x = np.round((((pin * self.pin_width * np.sin(radial_elev) 
+                                    * np.cos(radial_azims)) + self.site_lon * 1000 ).real) / 1000,3)
+                y = np.round(((pin * self.pin_width * np.sin(radial_elev)
+                                    * np.sin(radial_azims) + self.site_lat * 1000).real) / 1000, 3)  
+                z = np.round(((pin * self.pin_width * np.cos(radial_elev) + self.site_alt * 1000).real) / 1000, 3) 
                 v = self.velocity[radial_azims][pin]
                 
                 if type(v) == np.float32:
@@ -78,7 +81,7 @@ class ConvertCoordinates:
                 else:
                     v = 'NAN'
                     
-                coor = f'p: {pin}, Long: {x}, Lat: {y}, Alt: {z}, t: {t}, V: {v})'
+                coor = f'p: {pin},pin_w: {self.pin_width}, Long: {x}, Lat: {y}, Alt: {z}, t: {t}, V: {v})'
                 self.coor_list.append(coor)
 
             self.addRecords(self.coor_list)
@@ -90,37 +93,29 @@ def get_files():
         ext = ext.strip('.')
         if ext == 'nc':
             nc_files.append(file_name)
-
-def main():
-        get_files()
-        global mulitiprocess_files
-        def mulitiprocess_files(file):
-            ConvertCoordinates(file)
         
+    
+get_files()
+
+if __name__ == '__main__':
         for file in nc_files:
-            p = mp.Process(target=mulitiprocess_files,args=(file,))
+            pin_width = int(input(f'Enter pin width of file {file} : '))
+
+        for file in nc_files:
+            p = mp.Process(target=ConvertCoordinates,args=(file,pin_width))
             processes.append(p)
-
-        if __name__ == '__main__':
-            for p in processes :
-                p.start()
-                
-            for p in processes :
-                    p.join()
-
-            end = time.perf_counter()
-            print(f'Done in {round(end - start,2)}s')
-
-
-        
-
-
-main()
-
-
-
-
-
-
-
+            p.start()
             
+        for p in processes :
+                p.join()
+
+        end = time.perf_counter()
+        print(f'Finished in in {round(end - start,2)}s')
+
+
+
+
+
+
+
+     
