@@ -15,7 +15,6 @@ processes = []
 class ConvertCoordinates:
     '''this is the main class'''
     def __init__(self,file_name:str,pin_width:int):
-        
         self.data = Dataset(file_name)  # reading netCDF file
         self.coor_list = []
         self.coor = ''
@@ -37,7 +36,7 @@ class ConvertCoordinates:
             self.initiatFile(self.first_part) # initiating CSV file
 
         elif os.path.exists(f'{self.first_part}.csv'):
-            os.remove(f'{self.first_part}.csv')
+            os.remove(f'{self.first_part}.csv') # removes csv file if already exists then initiates it again 
             self.initiatFile(self.first_part) 
         self.getCartizian(file_name) # calculating cartizian coordiantes
     
@@ -55,25 +54,34 @@ class ConvertCoordinates:
     def getCartizian(self,filename:str):
         """This function takes nc file and then converts polar coordinates to cartizian coordiantes and convert epoch time to local time """
         
-        print(f'Converting {filename} into CSV, please wait a while')
+        print(f'Converting {filename} into CSV')
         
         for radial_elev, radial_azims, radial_time_epoch\
         in zip(self.radial_elev, self.radial_azims, self.radial_time):
             
-            for pin in range(7, 8):
+            for pin in self.pins_list:
             # calculate local time
                 t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(radial_time_epoch)))
                 # calculate to cartizan coordinates
-                if  270 >= degrees(radial_azims) >= 90:
+                if  180 >= degrees(radial_azims) >= 90:
                     self.site_lon *=  -1
-                    self.site_alt *=  -1
+
+                elif  270 >= degrees(radial_azims) >= 180:
+                    self.site_lon *=  -1
+                    self.site_lat *=  -1
+
+                elif  360 >= degrees(radial_azims) >= 270:
+                    self.site_lat *=  -1
                     
 
-                x = np.round((((pin * self.pin_width * np.sin(radial_elev) 
-                                    * np.cos(radial_azims)) + self.site_lon * 1000 ).real) / 1000,3)
-                y = np.round(((pin * self.pin_width * np.sin(radial_elev)
-                                    * np.sin(radial_azims) + self.site_lat * 1000).real) / 1000, 3)  
-                z = np.round(((pin * self.pin_width * np.cos(radial_elev) + self.site_alt * 1000).real) / 1000, 3) 
+                x = np.round(((pin * (self.pin_width / 1000) * np.sin(radial_elev) 
+                                    * np.cos(radial_azims) + self.site_lon ).real),3)
+
+                y = np.round(((pin * (self.pin_width / 1000) * np.sin(radial_elev)
+                                    * np.sin(radial_azims) + self.site_lat ).real) , 3)  
+
+                z = np.round(((pin * (self.pin_width / 1000) * np.cos(radial_elev) + self.site_alt).real), 3) 
+
                 v = self.velocity[radial_azims][pin]
                 
                 if type(v) == np.float32:
@@ -94,12 +102,13 @@ def get_files():
         if ext == 'nc':
             nc_files.append(file_name)
         
-    
-get_files()
 
 if __name__ == '__main__':
+        get_files()
+        
         for file in nc_files:
             pin_width = int(input(f'Enter pin width of file {file} : '))
+        print('\n')
 
         for file in nc_files:
             # mulitprocessing for multiple files in same time
@@ -112,11 +121,3 @@ if __name__ == '__main__':
 
         end = time.perf_counter()
         print(f'Finished in in {round(end - start,2)}s')
-
-
-
-
-
-
-
-     
