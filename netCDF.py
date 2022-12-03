@@ -48,7 +48,7 @@ class ConvertCoordinates:
     
     def initiatFile(self,firstpart:str):
         '''This function just creates empty CSV file format'''
-        self.file = open(f'{firstpart}.csv','a')
+        self.file = open(f'{firstpart}.csv','w')
         writer = csv.writer(self.file)
         writer.writerow(list(range(0,750)))
 
